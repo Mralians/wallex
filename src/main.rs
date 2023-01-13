@@ -1,0 +1,10 @@
+use dotenv::dotenv;
+
+mod wallex;
+
+fn main() {
+    dotenv().ok();
+    let api_key = dotenv::var("API_KEY").unwrap();
+    let profile = wallex::
+    println!("{:?}",value);
+}
