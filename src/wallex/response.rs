@@ -10,7 +10,7 @@ where
 {
     #[serde(deserialize_with = "object_empty_as_none")]
     result: Option<T>,
-    #[serde(default = "default_status_code")]
+    #[serde(default = "default_resource")]
     code: u16,
     message: String,
     success: bool,
@@ -37,9 +37,8 @@ where
         Aux::Empty(_) | Aux::Null => Ok(None),
     }
 }
-
 #[inline]
-fn default_status_code() -> u16 {
+fn default_resource() -> u16 {
     200
 }
 
