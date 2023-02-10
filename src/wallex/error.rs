@@ -5,40 +5,75 @@ use http::StatusCode;
 use std::convert::From;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum WallexError {
-    #[error("reqwest error")]
-    ReqwestErr(String),
-    #[error("invalid status code")]
-    InvalidStatusCodeErr(String),
-    #[error("bad request")]
-    BadRequestErr,
-    #[error("unauthorized")]
-    UnauthorizedErr,
-    #[error("access forbidden")]
-    ForbiddenErr,
-    #[error("resource not found")]
-    NotFoundErr,
-    #[error("unknown error")]
-    UnknownErr,
+#[derive(Debug)]
+pub struct Error {
+    kind:Kind,
+}
+#[derive(Debug)]
+enum Kind {
+    Json(serde_json::error::Error),
+    Http(reqwest::Error),
+    Lib(String),
 }
 
-impl From<reqwest::Error> for WallexError {
-    fn from(e: reqwest::Error) -> Self {
-        Self::ReqwestErr(e.to_string())
+impl From<serde_json::error::Error> for  Error {
+    fn from(err: serde_json::error::Error) -> Self {
+        Error {
+            kind: Kind::Json(err),
+        }
     }
 }
-impl From<InvalidStatusCode> for WallexError {
-    fn from(e: InvalidStatusCode) -> Self {
-        Self::InvalidStatusCodeErr(e.to_string())
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error {
+            kind: Kind::Http(err),
+        }
     }
 }
-pub fn err_non_ok_response(code: StatusCode) -> Result<(), WallexError> {
-    match code {
-        StatusCode::NOT_FOUND => Err(WallexError::NotFoundErr),
-        StatusCode::BAD_REQUEST => Err(WallexError::BadRequestErr),
-        StatusCode::UNAUTHORIZED => Err(WallexError::UnauthorizedErr),
-        StatusCode::FORBIDDEN => Err(WallexError::ForbiddenErr),
-        _ => Err(WallexError::UnknownErr),
+
+pub(crate) fn lib(err: impl Into<String>) -> Error {
+    Error {
+        kind: Kind::Lib(err.into()),
+    }
+}
+impl  Error {
+    pub fn status_code(&self) -> Option<StatusCode> {
+        match &self.kind {
+            Kind::Http(err) => err.status(),
+            _ => None,
+        }
+    }
+    pub fn is_timeout(&self) -> bool {
+        match &self.kind {
+            Kind::Http(err) => err.is_timeout(),
+            _ => false,
+        }
+    }
+    pub fn is_json(self) -> bool {
+        match &self.kind {
+            Kind::Json(_) => true,
+            _ => false,
+        }
+    }
+}
+
+use std::error;
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match &self.kind {
+            Kind::Lib(_) => None,
+            Kind::Http(err) => Some(err),
+            Kind::Json(err) => Some(err),
+        }
+    }
+}
+use std::fmt;
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            Kind::Lib(err) => err.fmt(f),
+            Kind::Http(err) => err.fmt(f),
+            Kind::Json(err) => err.fmt(f),
+        }
     }
 }

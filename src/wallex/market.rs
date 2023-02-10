@@ -4,7 +4,7 @@ use http::StatusCode;
 use serde::{de, Deserialize};
 use std::collections::HashMap;
 
-use super::error::{err_non_ok_response, WallexError};
+use super::error::{self,Error};
 use super::response::WallexResp;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -20,26 +20,37 @@ pub struct Market {
     pub symbol: String,
     #[serde(rename = "baseAsset")]
     pub base_asset: String,
+
     #[serde(rename = "baseAssetPrecision")]
     pub base_asset_precision: u32,
+
     #[serde(rename = "quoteAsset")]
     pub quote_asset: String,
+
     #[serde(rename = "quotePrecision")]
     pub quote_precision: u32,
+
     #[serde(rename = "faName")]
     pub fa_name: String,
+
     #[serde(rename = "faBaseAsset")]
     pub fa_base_asset: String,
+
     #[serde(rename = "faQuoteAsset")]
     pub fa_quote_asset: String,
+
     #[serde(rename = "stepSize")]
     pub step_size: u32,
+
     #[serde(rename = "tickSize")]
     pub tick_size: u32,
+
     #[serde(rename = "minQty")]
     pub min_qty: f64,
+
     #[serde(rename = "minNotional")]
     pub min_notional: f64,
+
     pub stats: Stats,
 
     #[serde(deserialize_with = "deserialize_timestamp")]
@@ -95,13 +106,6 @@ pub struct Stats {
     #[serde(rename = "bidVolume")]
     pub bid_volume: Option<f64>,
 
-    //#[serde(deserialize_with = "deserialize_f64")]
-    //#[serde(rename = "askVolume")]
-    //pub	ask_volume:Option<f64>,
-
-    //#[serde(deserialize_with = "deserialize_u32")]
-    //#[serde(rename = "bidCount")]
-    //pub	bid_count:Option<u32>,
     pub direction: Direction,
 }
 #[derive(Debug, Clone, Deserialize)]
@@ -114,7 +118,7 @@ pub struct Direction {
 
 const BASE_URL: &'static str = "https://api.wallex.ir";
 impl MarketResult {
-    pub fn new() -> Result<Self, WallexError> {
+    pub fn new() -> Result<Self, Error> {
         let client = reqwest::blocking::Client::new();
         let resp = client
             .get(BASE_URL.to_string() + "/v1/markets")
@@ -122,10 +126,6 @@ impl MarketResult {
             .header("Content-Type", "application/json")
             .send()?
             .json::<WallexResp<MarketResult>>()?;
-        let status_code = StatusCode::from_u16(resp.status_code())?;
-        if status_code != reqwest::StatusCode::OK {
-            err_non_ok_response(status_code)?
-        }
         let market = resp.result().clone().unwrap();
         Ok(market)
     }
@@ -152,5 +152,3 @@ where
     let datetime_utc = datetime.with_timezone(&Utc);
     Ok(datetime_utc)
 }
-
-
